@@ -1,0 +1,993 @@
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoL Draft Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
+    <style>
+        body, html {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0a0a0c;
+            color: #c8aa6e;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .draft-area {
+            display: flex;
+            height: 100vh;
+            padding: 10px 10px 15px 10px;
+            box-sizing: border-box;
+        }
+        .team {
+            width: 18%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            background-color: rgba(30, 35, 40, 0.7);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+        .center-area {
+            width: 62%;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 80px; /* Add padding to avoid overlap with the lock-in button */
+        }
+        .champion-grid {
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: hidden; 
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 30px;
+            padding: 5px;
+            background-color: rgba(30, 35, 40, 0.3);
+            border-radius: 10px;
+            justify-content: start;
+            align-content: start;
+        }
+        .champion-grid {
+    scrollbar-width: thin; /* For Firefox */
+    scrollbar-color: #785a28 #1e2328; /* For Firefox */
+}
+
+/* For Webkit browsers like Chrome, Safari */
+.champion-grid::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+
+.champion-grid::-webkit-scrollbar-track {
+    background: #1e2328; /* Color of the track */
+    border-radius: 4px;
+}
+
+.champion-grid::-webkit-scrollbar-thumb {
+    background-color: #785a28; /* Color of the scroll thumb */
+    border-radius: 4px;
+    border: 2px solid #1e2328; /* Creates padding around scroll thumb */
+}
+
+
+    .champion-grid::-webkit-scrollbar-thumb:hover {
+        background-color: #c8aa6e; /* Lighter color when hovering */
+    }
+
+    #turn-display {
+    display: none; /* Hide by default */
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    z-index: 1000;
+}
+
+
+    #turn-text {
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    }
+
+    .blue-turn {
+        background-color: #0ac8b9;
+        color: #1e2328;
+    }
+
+    .red-turn {
+        background-color: #e84057;
+        color: #1e2328;
+    }
+
+    
+    .champion {
+    width: 130px;
+    height: 130px;
+    aspect-ratio: 1.3;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid #2c3033;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    transform: translate(-10%, -10%); 
+}
+.champion img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.champion.hidden {
+    display: none;
+}
+        .champion:hover {
+    border-color: #c8aa6e;
+    transform: scale(1.05) translate(-10%, -10%); /* Maintain centering on hover */
+}
+        .picked, .banned {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .timer {
+            font-size: 32px;
+            text-align: center;
+            margin-top: 55px;
+        }
+        .status {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .pick-container {
+            height: 16vh;
+            margin-bottom: 5px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+            border: 2px solid #785a28;
+            box-shadow: 0 0 10px rgba(120, 90, 40, 0.5);
+        }
+        .pick-splash {
+            width: 100%;
+            height: 111.65%; /* 100% / 0.85 to show only top 85% */
+            object-fit: cover;
+            object-position: top; /* Align the image to the top */
+        }
+        .pick-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #c8aa6e;
+            padding: 5px;
+            text-align: center;
+        }
+        .ban-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .ban-box {
+            width: 18%;
+            aspect-ratio: 1;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 0 5px rgba(120, 90, 40, 0.5);
+            background-color: rgba(30, 35, 40, 0.7);
+        }
+        .ban-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .ban-box.hovered {
+            border-color: #c8aa6e;
+            box-shadow: 0 0 10px #c8aa6e;
+        }
+        .pick-container.hovered {
+            border-color: #c8aa6e;
+            box-shadow: 0 0 10px #c8aa6e;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #1e2328;
+            color: #c8aa6e;
+            border: 2px solid #785a28;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background-color: #785a28;
+            color: #1e2328;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .search-container {
+            margin-bottom: 10px;
+        }
+        #search {
+            width: 98%;
+            padding: 10px;
+            font-size: 16px;
+            background-color: #1e2328;
+            color: #c8aa6e;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+        }
+        .role-icons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .role-icon {
+            width: 45px;
+            height: 45px;
+            margin: 0 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .role-icon:hover {
+            transform: scale(1.1);
+        }
+        #fearlessBansButton {
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            font-size: 16px;
+            background-color: #1e2328;
+            color: #c8aa6e;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #fearlessBansButton:hover {
+            background-color: #785a28;
+            color: #1e2328;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #1e2328;
+            margin: 5% auto;
+            padding: 20px;
+            border: 2px solid #785a28;
+            width: 90%;
+            max-width: 1200px;
+            border-radius: 10px;
+        }
+        .close {
+            color: #c8aa6e;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: #785a28;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #fearlessBansList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .fearless-ban-icon {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .fearless-ban-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .lock-in-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        #lock-in {
+            font-size: 24px;
+            padding: 15px 40px;
+            background-color: #1e2328;
+            color: #c8aa6e;
+            border: 3px solid #785a28;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #lock-in:hover {
+            background-color: #785a28;
+            color: #1e2328;
+        }
+        #lock-in:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .previous-draft-team {
+            margin-bottom: 20px;
+        }
+        .previous-draft-picks, .previous-draft-bans {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .previous-draft-pick, .previous-draft-ban {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .previous-draft-ban {
+            width: 40px;
+            height: 40px;
+        }
+        .previous-draft-pick img, .previous-draft-ban img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .blue-team h3 {
+            color: #0ac8b9;
+        }
+        .red-team h3 {
+            color: #e84057;
+        }
+        .modal-content {
+            max-width: 800px; /* Increased to accommodate the new layout */
+        }
+        .previous-draft-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .previous-draft-team {
+            width: 48%;
+        }
+        .previous-draft-picks {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .previous-draft-bans {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .previous-draft-pick {
+            width: 100%;
+            height: 60px;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .previous-draft-ban {
+            width: 18%;
+            aspect-ratio: 1;
+            border: 2px solid #785a28;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+    .modal-content {
+        background-color: #1e2328;
+        margin: 5% auto;
+        padding: 20px;
+        border: 2px solid #785a28;
+        width: 90%;
+        max-width: 1200px;
+        border-radius: 10px;
+    }
+
+    .previous-draft-container {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .previous-draft-team {
+        background-color: rgba(0, 0, 0, 0.3);
+        padding: 15px;
+        border-radius: 10px;
+        width: 48%;
+    }
+
+    .previous-draft-picks {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .previous-draft-bans {
+        display: flex;
+        justify-content: flex-start;
+        gap: 5px;
+    }
+
+    .previous-draft-pick {
+        width: 80px;
+        height: 80px;
+        border: 2px solid #785a28;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .previous-draft-ban {
+        width: 50px;
+        height: 50px;
+        border: 2px solid #785a28;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .previous-draft-pick img, .previous-draft-ban img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .blue-team h3 {
+        color: #0ac8b9;
+        margin-bottom: 10px;
+    }
+
+    .red-team h3 {
+        color: #e84057;
+        margin-bottom: 10px;
+    }
+</style>
+<script>
+    const championData = JSON.parse('{{ champions | tojson | safe }}');
+    const preloadImages = () => {
+        Object.values(championData).forEach(champion => {
+            const iconImg = new Image();
+            iconImg.src = champion.icon;
+            const splashImg = new Image();
+            splashImg.src = champion.splash;
+        });
+    };
+    window.addEventListener('load', preloadImages);
+</script>
+</head>
+<body>
+    <div id="turn-display">
+        <span id="turn-text"></span>
+    </div>
+    <div class="draft-area">
+        <div class="team blue-team">
+            <h2 class="team-name" id="blue-team-name"></h2>
+            <div class="pick-container" id="blue-pick-1"></div>
+            <div class="pick-container" id="blue-pick-2"></div>
+            <div class="pick-container" id="blue-pick-3"></div>
+            <div class="pick-container" id="blue-pick-4"></div>
+            <div class="pick-container" id="blue-pick-5"></div>
+            <div class="ban-container" id="blue-bans"></div>
+            <div class="button-container">
+                <button id="blue-ready">Ready</button>
+                <button id="blue-side-swap">Side Swap Request</button>
+            </div>
+        </div>
+        <div class="center-area">
+            <div class="timer" id="timer"></div>
+            <div class="status" id="status"></div>
+            <div class="game-number" id="game-number"></div>
+            <div id="previous-games-buttons"></div>
+            <button id="fearlessBansButton">Fearless Bans</button>
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Search champions...">
+            </div>
+            <div class="role-icons">
+                <img src="/static/role_icons/top.png" alt="Top" class="role-icon" data-role="Top">
+                <img src="/static/role_icons/jungle.png" alt="Jungle" class="role-icon" data-role="Jungle">
+                <img src="/static/role_icons/mid.png" alt="Mid" class="role-icon" data-role="Mid">
+                <img src="/static/role_icons/bot.png" alt="Bot" class="role-icon" data-role="Bot">
+                <img src="/static/role_icons/support.png" alt="Support" class="role-icon" data-role="Support">
+            </div>
+            <div class="champion-grid" id="champion-grid"></div>
+        </div>
+        <div class="lock-in-container">
+            <button id="lock-in">Lock In</button>
+        </div>
+        <div class="team red-team">
+            <h2 class="team-name" id="red-team-name"></h2>
+            <div class="pick-container" id="red-pick-1"></div>
+            <div class="pick-container" id="red-pick-2"></div>
+            <div class="pick-container" id="red-pick-3"></div>
+            <div class="pick-container" id="red-pick-4"></div>
+            <div class="pick-container" id="red-pick-5"></div>
+            <div class="ban-container" id="red-bans"></div>
+            <div class="button-container">
+                <button id="red-ready">Ready</button>
+                <button id="red-side-swap">Side Swap Request</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="fearlessBansModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Fearless Bans</h2>
+            <div id="fearlessBansList"></div>
+        </div>
+    </div>
+
+    <!-- Add this modal for previous drafts -->
+    <div id="previousDraftModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const roomId = '{{ room_id }}';
+        let userRole = '{{ role }}';
+        let currentDraft = null;
+        let selectedChampion = null;
+        const champions = JSON.parse('{{ champions | tojson | safe }}');
+        let filteredChampions = Object.keys(champions);
+
+        
+        const championRoles = {};
+        Object.keys(champions).forEach(champion => {
+            championRoles[champion] = champions[champion].roles;
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            socket.emit('join', {username: userRole, room: roomId, role: userRole});
+        });
+
+        socket.on('status', (data) => {
+            console.log(data.msg);
+        });
+
+        socket.on('update_draft', (draft) => {
+    console.log('Received draft update:', draft);
+    
+    // Check if a side swap occurred
+    if (currentDraft && 
+        currentDraft.blue_team.name !== draft.blue_team.name &&
+        currentDraft.red_team.name !== draft.red_team.name) {
+        console.log('Side swap detected');
+        
+        // Update user role based on team name, not color
+        if (userRole === 'blue' && draft.red_team.name === currentDraft.blue_team.name) {
+            userRole = 'red';
+        } else if (userRole === 'red' && draft.blue_team.name === currentDraft.red_team.name) {
+            userRole = 'blue';
+        }
+        
+        
+        alert('Teams have swapped sides!');
+    }
+    
+    currentDraft = draft;
+    updateUI();
+});
+
+socket.on('timer_update', (data) => {
+    if (currentDraft) {
+        currentDraft.time_left = data.time_left;
+        updateTimer();
+    }
+});
+
+        socket.on('clear_draft', () => {
+            console.log('Clearing draft');
+            document.querySelectorAll('.pick-container').forEach(el => el.innerHTML = '');
+            document.querySelectorAll('.ban-container').forEach(el => el.innerHTML = '');
+            updateUI();
+        });
+
+        socket.on('draft_complete', () => {
+            console.log('Draft complete');
+            document.getElementById('status').textContent = 'Draft Complete';
+        });
+
+        socket.on('champion_hover', (data) => {
+    const { team, champion, phase, draft_index, position } = data;
+    const teamLower = team.toLowerCase();
+    
+    if (phase === 'Ban') {
+        const banContainer = document.getElementById(`${teamLower}-bans`);
+        const banBoxes = banContainer.querySelectorAll('.ban-box');
+        const currentBanBox = banBoxes[position];
+        
+        if (currentBanBox) {
+            currentBanBox.innerHTML = `<img src="${champions[champion].icon}" alt="${champion}">`;
+            currentBanBox.classList.add('hovered');
+        }
+    } else if (phase === 'Pick') {
+        const pickContainer = document.getElementById(`${teamLower}-pick-${position + 1}`);
+        
+        if (pickContainer) {
+            pickContainer.innerHTML = `
+                <img src="${champions[champion].splash}" alt="${champion}" class="pick-splash">
+                <div class="pick-name">${champion}</div>
+            `;
+            pickContainer.classList.add('hovered');
+        }
+    }
+});
+
+        function updateUI() {
+            console.log('Updating UI');
+            updateTimer();
+            updateStatus();
+            updateTeamNames();
+            updatePicks();
+            updateBans();
+            updateChampionGrid();
+            updateButtons();
+            updateGameNumber();
+            updateFearlessBansList();
+            updatePreviousGamesButtons();
+            updateSideSwapButtons();
+        }
+
+        function updateTimer() {
+    const timerElement = document.getElementById('timer');
+    if (currentDraft.current_phase === 'Ready') {
+        timerElement.textContent = 'Waiting for teams to ready up';
+    } else if (currentDraft.current_phase === 'Complete') {
+        timerElement.textContent = 'Draft Complete';
+    } else if (currentDraft.time_left !== null) {
+        timerElement.textContent = `Time left: ${currentDraft.time_left}s`;
+    } else {
+        timerElement.textContent = '';
+    }
+}
+
+        function updateStatus() {
+    const statusElement = document.getElementById('status');
+    const turnDisplay = document.getElementById('turn-display');
+    const turnText = document.getElementById('turn-text');
+
+    if (currentDraft.current_phase === 'Ready') {
+        statusElement.textContent = 'Waiting for teams to ready up';
+        turnDisplay.style.display = 'none'; // Hide turn display
+    } else {
+        statusElement.textContent = `${currentDraft.current_team} Team ${currentDraft.current_phase}`;
+        
+        // Show and update turn display
+        turnDisplay.style.display = 'block';
+        turnText.textContent = `${currentDraft.current_team} Team's Turn`;
+        turnDisplay.className = ''; // Clear previous classes
+        if (currentDraft.current_team === 'Blue') {
+            turnDisplay.classList.add('blue-turn');
+        } else if (currentDraft.current_team === 'Red') {
+            turnDisplay.classList.add('red-turn');
+        }
+    }
+}
+
+        function updateTeamNames() {
+            document.getElementById('blue-team-name').textContent = currentDraft.blue_team.name;
+            document.getElementById('red-team-name').textContent = currentDraft.red_team.name;
+        }
+
+        function updatePicks() {
+    ['blue', 'red'].forEach(team => {
+        for (let i = 0; i < 5; i++) {
+            const pickElement = document.getElementById(`${team}-pick-${i + 1}`);
+            const champion = currentDraft[`${team}_team`].picks[i];
+            const hoveredChampion = currentDraft.hovered_champion[team.charAt(0).toUpperCase() + team.slice(1)];
+            
+            if (champion) {
+                pickElement.innerHTML = `
+                    <img src="${champions[champion].splash}" alt="${champion}" class="pick-splash">
+                    <div class="pick-name">${champion}</div>
+                `;
+                pickElement.classList.remove('hovered');
+            } else if (hoveredChampion && currentDraft[`${team}_team`].picks.length === i && currentDraft.current_team.toLowerCase() === team && currentDraft.current_phase === 'Pick') {
+                pickElement.innerHTML = `
+                    <img src="${champions[hoveredChampion].splash}" alt="${hoveredChampion}" class="pick-splash">
+                    <div class="pick-name">${hoveredChampion}</div>
+                `;
+                pickElement.classList.add('hovered');
+            } else {
+                pickElement.innerHTML = '';
+                pickElement.classList.remove('hovered');
+            }
+        }
+    });
+}
+
+function updateBans() {
+    ['blue', 'red'].forEach(team => {
+        const banContainer = document.getElementById(`${team}-bans`);
+        banContainer.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const champion = currentDraft[`${team}_team`].bans[i];
+            const hoveredChampion = currentDraft.hovered_champion[team.charAt(0).toUpperCase() + team.slice(1)];
+            
+            const banBox = document.createElement('div');
+            banBox.className = 'ban-box';
+            
+            if (champion) {
+                banBox.innerHTML = `<img src="${champions[champion].icon}" alt="${champion}">`;
+            } else if (hoveredChampion && currentDraft[`${team}_team`].bans.length === i && currentDraft.current_team.toLowerCase() === team && currentDraft.current_phase === 'Ban') {
+                banBox.innerHTML = `<img src="${champions[hoveredChampion].icon}" alt="${hoveredChampion}">`;
+                banBox.classList.add('hovered');
+            }
+            
+            banContainer.appendChild(banBox);
+        }
+    });
+}
+
+function updateChampionGrid() {
+    const grid = document.getElementById('champion-grid');
+    const searchTerm = document.getElementById('search').value.toLowerCase();
+    
+    Object.keys(champions).forEach(champion => {
+        let championElement = grid.querySelector(`[data-champion="${champion}"]`);
+        
+        if (!championElement) {
+            championElement = document.createElement('div');
+            championElement.className = 'champion';
+            championElement.dataset.champion = champion;
+
+            const img = document.createElement('img');
+            img.src = champions[champion].icon;
+            img.alt = champion;
+
+            championElement.appendChild(img);
+            championElement.addEventListener('click', () => selectChampion(champion));
+            grid.appendChild(championElement);
+        }
+
+        
+        if ((searchTerm === '' || champion.toLowerCase().includes(searchTerm)) &&
+            (currentRole === null || (champions[champion].roles && champions[champion].roles.includes(currentRole))) && 
+            !currentDraft.used_champions.includes(champion) && 
+            !currentDraft.fearless_bans.includes(champion)) {
+            championElement.classList.remove('hidden');
+        } else {
+            championElement.classList.add('hidden');
+        }
+    });
+}
+    
+    // Ensure consistent sizing after update
+    document.querySelectorAll('.champion').forEach(champ => {
+        champ.style.width = '130%';
+        champ.style.height = '130%';
+    });
+
+
+// Ensure consistent sizing after update
+document.querySelectorAll('.champion').forEach(champ => {
+    champ.style.width = '130%';
+        champ.style.height = '120%';
+    });
+
+
+function updateButtons() {
+    const blueReadyButton = document.getElementById('blue-ready');
+    const redReadyButton = document.getElementById('red-ready');
+    const blueSideSwapButton = document.getElementById('blue-side-swap');
+    const redSideSwapButton = document.getElementById('red-side-swap');
+    const lockInButton = document.getElementById('lock-in');
+
+    // Update button states based on team names, not colors
+    const userTeamName = userRole === 'blue' ? currentDraft.blue_team.name : currentDraft.red_team.name;
+    const isUserTurn = currentDraft.current_team === userRole.charAt(0).toUpperCase() + userRole.slice(1);
+
+    blueReadyButton.disabled = currentDraft.blue_team.ready || currentDraft.blue_team.name !== userTeamName;
+    redReadyButton.disabled = currentDraft.red_team.ready || currentDraft.red_team.name !== userTeamName;
+    blueSideSwapButton.disabled = currentDraft.current_phase !== 'Ready' || currentDraft.blue_team.name !== userTeamName;
+    redSideSwapButton.disabled = currentDraft.current_phase !== 'Ready' || currentDraft.red_team.name !== userTeamName;
+    lockInButton.disabled = !selectedChampion || !isUserTurn;
+}
+
+        function updateGameNumber() {
+            const gameNumberElement = document.getElementById('game-number');
+            gameNumberElement.textContent = `Game ${currentDraft.current_game}`;
+        }
+
+        function updateFearlessBansList() {
+            const fearlessBansList = document.getElementById('fearlessBansList');
+            fearlessBansList.innerHTML = '';
+            currentDraft.fearless_bans.forEach(champion => {
+                const banIcon = document.createElement('div');
+                banIcon.className = 'fearless-ban-icon';
+                banIcon.innerHTML = `<img src="${champions[champion].icon}" alt="${champion}">`;
+                fearlessBansList.appendChild(banIcon);
+            });
+        }
+
+        function updatePreviousGamesButtons() {
+            const buttonsContainer = document.getElementById('previous-games-buttons');
+            buttonsContainer.innerHTML = '';
+            for (let i = 1; i < currentDraft.current_game; i++) {
+                const button = document.createElement('button');
+                button.textContent = `Game ${i}`;
+                button.addEventListener('click', () => showPreviousDraft(i));
+                buttonsContainer.appendChild(button);
+            }
+        }
+
+        function updateSideSwapButtons() {
+            const blueSideSwapButton = document.getElementById('blue-side-swap');
+            const redSideSwapButton = document.getElementById('red-side-swap');
+
+            blueSideSwapButton.textContent = currentDraft.side_swap_requested.Blue ? 'Cancel Swap' : 'Side Swap Request';
+            redSideSwapButton.textContent = currentDraft.side_swap_requested.Red ? 'Cancel Swap' : 'Side Swap Request';
+        }
+
+        function selectChampion(champion) {
+    selectedChampion = champion;
+    document.querySelectorAll('.champion').forEach(el => el.classList.remove('selected'));
+    const championElement = document.querySelector(`.champion[data-champion="${champion}"]`);
+    if (championElement) {
+        championElement.classList.add('selected');
+        socket.emit('hover_champion', {room: roomId, champion: champion, team: userRole, role: userRole});
+    } else {
+        console.error(`Champion element not found for ${champion}`);
+    }
+}
+
+        document.getElementById('lock-in').addEventListener('click', () => {
+            if (selectedChampion) {
+                socket.emit('lock_in_champion', {room: roomId, champion: selectedChampion, role: userRole});
+                selectedChampion = null;
+            }
+        });
+
+        document.getElementById('blue-ready').addEventListener('click', () => {
+    socket.emit('ready', {room: roomId, team: currentDraft.blue_team.name});
+});
+
+document.getElementById('red-ready').addEventListener('click', () => {
+    socket.emit('ready', {room: roomId, team: currentDraft.red_team.name});
+});
+
+document.getElementById('blue-side-swap').addEventListener('click', () => {
+    socket.emit('request_side_swap', {room: roomId, team: currentDraft.blue_team.name});
+});
+
+document.getElementById('red-side-swap').addEventListener('click', () => {
+    socket.emit('request_side_swap', {room: roomId, team: currentDraft.red_team.name});
+});
+
+document.getElementById('search').addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+            filteredChampions = Object.keys(champions).filter(champion => 
+                champion.toLowerCase().includes(searchTerm)
+            );
+            updateChampionGrid();
+         });
+
+        let currentRole = null;
+
+document.querySelectorAll('.role-icon').forEach(icon => {
+    icon.addEventListener('click', () => {
+        const role = icon.dataset.role;
+        
+        if (currentRole === role) {
+            // If clicking the same role, reset to show all champions
+            currentRole = null;
+            filteredChampions = Object.keys(champions);
+        } else {
+            // If clicking a different role, filter champions
+            currentRole = role;
+            filteredChampions = Object.keys(champions).filter(champion => 
+                champions[champion].roles && champions[champion].roles.includes(role)
+            );
+        }
+        
+        // Update visual feedback for selected role
+        document.querySelectorAll('.role-icon').forEach(i => {
+            i.classList.toggle('selected', i.dataset.role === currentRole);
+        });
+        
+        updateChampionGrid();
+    });
+});
+
+
+        function showPreviousDraft(gameNumber) {
+            const previousDraft = currentDraft.previous_drafts[gameNumber - 1];
+            const modal = document.getElementById('previousDraftModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalContent = document.getElementById('modalContent');
+
+            modalTitle.textContent = `Game ${gameNumber} Draft`;
+
+            function createTeamDisplay(team, side) {
+                return `
+                    <div class="previous-draft-team ${side}-team">
+                        <h3>${team.name}</h3>
+                        <div class="previous-draft-picks">
+                            ${team.picks.map(champion => `
+                                <div class="previous-draft-pick">
+                                    <img src="${champions[champion].icon}" alt="${champion}" title="${champion}">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="previous-draft-bans">
+                            ${team.bans.map(champion => `
+                                <div class="previous-draft-ban">
+                                    <img src="${champions[champion].icon}" alt="${champion}" title="${champion}">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            modalContent.innerHTML = `
+                <div class="previous-draft-container">
+                    ${createTeamDisplay(previousDraft.blue_team, 'blue')}
+                    ${createTeamDisplay(previousDraft.red_team, 'red')}
+                </div>
+            `;
+
+            modal.style.display = 'block';
+        }
+
+        document.getElementById('fearlessBansButton').addEventListener('click', () => {
+            updateFearlessBansList();
+            document.getElementById('fearlessBansModal').style.display = 'block';
+        });
+
+        // Update the modal close listeners to handle both modals
+        document.querySelectorAll('.modal .close').forEach(closeBtn => {
+            closeBtn.addEventListener('click', () => {
+                closeBtn.closest('.modal').style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        });
+
+        setInterval(() => {
+            if (currentDraft && currentDraft.current_phase !== 'Complete' && currentDraft.time_left !== null) {
+                socket.emit('update_timer', {room: roomId});
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

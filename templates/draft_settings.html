@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft Settings</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        form {
+            display: grid;
+            gap: 20px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #games-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Draft Settings</h1>
+        <form action="{{ url_for('create_draft') }}" method="post">
+            <div>
+                <label for="mode">Draft Mode:</label>
+                <select name="mode" id="mode" onchange="toggleGamesInput()">
+                    <option value="fearless" selected>Fearless</option>
+                    <option value="standard">Standard</option>
+                </select>
+            </div>
+            
+            <div id="games-container">
+                <label for="games">Number of Games (Fearless mode):</label>
+                <input type="number" name="games" id="games" min="3" max="5" value="3">
+            </div>
+            
+            <div>
+                <label for="pick_time">Pick Time (seconds):</label>
+                <input type="number" name="pick_time" id="pick_time" min="10" max="60" value="30">
+            </div>
+            
+            <div>
+                <label for="ban_time">Ban Time (seconds):</label>
+                <input type="number" name="ban_time" id="ban_time" min="10" max="60" value="30">
+            </div>
+            
+            <div>
+                <label for="blue_team_name">Blue Team Name:</label>
+                <input type="text" name="blue_team_name" id="blue_team_name" value="Blue" required>
+            </div>
+            
+            <div>
+                <label for="red_team_name">Red Team Name:</label>
+                <input type="text" name="red_team_name" id="red_team_name" value="Red" required>
+            </div>
+            
+            <button type="submit">Create Draft</button>
+        </form>
+    </div>
+
+    <script>
+        function toggleGamesInput() {
+            const mode = document.getElementById('mode').value;
+            const gamesContainer = document.getElementById('games-container');
+            gamesContainer.style.display = mode === 'fearless' ? 'block' : 'none';
+        }
+
+        // Show games input by default
+        window.onload = function() {
+            toggleGamesInput();
+        };
+    </script>
+</body>
+</html>

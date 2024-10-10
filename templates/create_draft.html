@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft Created</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #45108A 0%, #3D065F 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            width: 90%;
+            max-width: 700px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+        }
+        h2 {
+            font-size: 1.8em;
+            margin-top: 30px;
+        }
+        p {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 15px;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: color 0.3s ease;
+        }
+        a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+        .copy-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 30px;
+            transition: background-color 0.3s ease;
+        }
+        .copy-button:hover {
+            background-color: #2980b9;
+        }
+        #copyStatus {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #27ae60;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Draft Room Created</h1>
+        <p><strong>Room ID:</strong> {{ room_id }}</p>
+        <h2>Team Names</h2>
+        <p><strong>Blue Team:</strong> {{ blue_team_name }}</p>
+        <p><strong>Red Team:</strong> {{ red_team_name }}</p>
+        <h2>Join Links</h2>
+        <ul>
+            <li><a href="{{ url_for('join_draft', room_id=room_id, role='blue') }}">Blue Team ({{ blue_team_name }})</a></li>
+            <li><a href="{{ url_for('join_draft', room_id=room_id, role='red') }}">Red Team ({{ red_team_name }})</a></li>
+            <li><a href="{{ url_for('join_draft', room_id=room_id, role='spectator') }}">Spectator</a></li>
+        </ul>
+        <button class="copy-button" onclick="copyLinks()">Copy All Links</button>
+        <p id="copyStatus"></p>
+    </div>
+
+    <script>
+        function copyLinks() {
+            const links = `Room ID: {{ room_id }}
+
+Blue Team ({{ blue_team_name }}):
+{{ url_for('join_draft', room_id=room_id, role='blue', _external=True) }}
+
+Red Team ({{ red_team_name }}):
+{{ url_for('join_draft', room_id=room_id, role='red', _external=True) }}
+
+Spectator:
+{{ url_for('join_draft', room_id=room_id, role='spectator', _external=True) }}`;
+
+            navigator.clipboard.writeText(links).then(function() {
+                document.getElementById('copyStatus').textContent = 'Links copied to clipboard!';
+                setTimeout(() => {
+                    document.getElementById('copyStatus').textContent = '';
+                }, 3000);
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+</body>
+</html>

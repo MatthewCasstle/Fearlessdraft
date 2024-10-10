@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoL Draft Simulator - Home</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0a0a0c;
+            color: #c8aa6e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            font-size: 18px;
+            background-color: #f0b326;
+            color: #1e2328;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        .button:hover {
+            background-color: #c8aa6e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LoL Draft Simulator</h1>
+        <a href="{{ url_for('draft_settings') }}" class="button">Create Draft</a>
+        <a href="#" class="button" onclick="joinDraft()">Join Draft</a>
+    </div>
+
+    <script>
+        function joinDraft() {
+            const roomId = prompt("Enter the room ID:");
+            if (roomId) {
+                window.location.href = `/join/${roomId}/spectator`;
+            }
+        }
+    </script>
+</body>
+</html>
